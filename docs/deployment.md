@@ -17,7 +17,7 @@ This project does not require local Node.js or Wrangler installation, local conf
 ## Step 1: Create D1 in the Cloudflare Dashboard
 
 1. Open Cloudflare Dashboard → Storage & databases → D1 SQL database.
-2. Create a database named `pulipuli-blog-knowledge`.
+2. Create a database named `pulipuli-facebook-knowledge`.
 3. Copy its **Database ID** (UUID).
 
 This ID is not an API key and does not itself grant access. The project nevertheless stores it as a GitHub Actions Variable instead of hard-coding it into Git so that public forks can use their own D1 databases.
@@ -26,7 +26,7 @@ This ID is not an API key and does not itself grant access. The project neverthe
 
 1. Sign in to Qdrant Cloud and create a free-tier cluster.
 2. Save its **Cluster Endpoint** (the Qdrant REST API address, typically `https://<cluster-host>:6333`) and **API Key**. You will put these in GitHub Secrets, not in repository files or issues. Preserve the provided `https://` and `:6333`, and do not use the cluster management console URL.
-3. Choose a collection name such as `pulipuli_blog_chunks`. You will set it later as the GitHub Variable `QDRANT_COLLECTION`.
+3. Choose a collection name such as `pulipuli_facebook_chunks`. You will set it later as the GitHub Variable `QDRANT_COLLECTION`.
 4. You do **not** need to create the collection manually. The ingestion engine creates it during initial ingestion using the embedding model's actual vector dimension.
 
 ## Step 3: Obtain a Cloudflare API Token and Account ID
@@ -59,11 +59,23 @@ The deployment workflow uploads the required GitHub Secrets as Cloudflare Worker
 
 **Important:** Do not paste `INGEST_TOKEN` into chats or public repositories. The production Worker and the scheduled GitHub workflow must use the same Secret.
 
+## Cloudflare workers.dev first-time onboarding
+
+A new Cloudflare account must register its account-wide `workers.dev` subdomain before `wrangler deploy` can publish a public URL. GitHub Actions is non-interactive and cannot respond to Wrangler's registration prompt. The deployment workflow now checks this **before applying D1 migrations**:
+
+- If the account already has a workers.dev subdomain, deployment continues without changes. Do not set `WORKERS_DEV_SUBDOMAIN` to a different name.
+- If no subdomain exists and `WORKERS_DEV_SUBDOMAIN` is set (for example, `pulipuli-facebook`), the workflow registers it using Cloudflare's API (`PUT /accounts/{account_id}/workers/subdomain`). This is an explicit, account-wide one-time change; the token needs **Workers Scripts Write** permission.
+- If neither is true, deployment stops early with a clear GitHub Actions error explaining how to create the GitHub Variable or register it manually in Cloudflare **Workers & Pages**. The script never chooses a subdomain without being told to.
+
+The name must be globally available. This is an account setting, **not the Worker name**; the published URL is `https://pulipuli-facebook-knowledge-mcp.<account-subdomain>.workers.dev`. After successful deployment the workflow writes the health and MCP URLs to its job summary.
+
+Official documentation: [workers.dev routes](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/) and [Cloudflare API: Create a Workers Subdomain](https://developers.cloudflare.com/api/resources/workers/subresources/subdomains/methods/update/).
+
 ## Step 5: Perform the Initial Cloud Deployment
 
 1. Confirm that [CI](../.github/workflows/ci.yml) has passed.
 2. Go to GitHub repository → **Actions → Deploy Cloudflare Worker → Run workflow** and manually select `main`.
-3. The workflow runs Node.js 22 setup and tests, verifies the D1 ID, generates `wrangler.toml`, applies remote `wrangler d1 migrations apply DB --remote`, runs `wrangler deploy`, and synchronizes Worker Secrets.
+3. The workflow runs Node.js 22 setup and tests, verifies the D1 ID, generates `wrangler.toml`, verifies/registers the workers.dev account subdomain, applies remote `wrangler d1 migrations apply DB --remote`, runs `wrangler deploy`, and synchronizes Worker Secrets.
 4. Find the public `*.workers.dev` address in the workflow logs (or use your custom domain). Opening `https://<worker-host>/health` should return `status: ok` and `database: ok`.
 5. Optionally set `ENABLE_AUTO_DEPLOY=true` after the initial deployment. Only **successful CI runs triggered by pushes to the main branch** should initiate automatic deployment. Pull-request CI does not use production deployment credentials, preventing deployments from unreviewed branches.
 

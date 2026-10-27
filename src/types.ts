@@ -53,6 +53,7 @@ export interface FeedEntry {
   publishedAt: string | null;
   updatedAt: string | null;
   tags: string[];
+  content?: string;
 }
 
 export interface FeedCursor {

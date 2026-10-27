@@ -1,0 +1,25 @@
+name = "pulipuli-blog-knowledge-mcp"
+main = "src/index.ts"
+compatibility_date = "2026-10-26"
+workers_dev = true
+
+[vars]
+BLOG_FEED_URL = "https://blog.pulipuli.info/feeds/posts/default"
+BLOG_BASE_URL = "https://blog.pulipuli.info/"
+EMBEDDING_MODEL = "@cf/baai/bge-m3"
+MAX_ARTICLES_PER_REQUEST = "1"
+FEED_PAGE_SIZE = "100"
+INGEST_CONCURRENCY = "1"
+REQUEST_DELAY_MS = "1000"
+CHUNK_SIZE_CHARS = "900"
+CHUNK_OVERLAP_CHARS = "150"
+SEARCH_MAX_RESULTS = "20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pulipuli-blog-knowledge"
+database_id = "REPLACE_WITH_REAL_DATABASE_ID"
+migrations_dir = "migrations"
+
+[ai]
+binding = "AI"

@@ -1,0 +1,109 @@
+name: Deploy Cloudflare Worker
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # First deployment is manual; enable later with the ENABLE_AUTO_DEPLOY variable.
+    # Never deploy code from a pull_request workflow_run with production credentials.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository &&
+           vars.ENABLE_AUTO_DEPLOY == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout tested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Verify TypeScript and unit tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Generate runtime Wrangler config on the GitHub runner
+        env:
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          db_id = os.environ.get("D1_DATABASE_ID", "").strip()
+          if not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", db_id):
+              raise SystemExit("Set Actions variable D1_DATABASE_ID to the Cloudflare D1 UUID.")
+          template = Path("wrangler.example.toml").read_text(encoding="utf-8")
+          placeholder = "REPLACE_WITH_REAL_DATABASE_ID"
+          if template.count(placeholder) != 1:
+              raise SystemExit("Expected one D1 database ID placeholder in wrangler.example.toml.")
+          Path("wrangler.toml").write_text(template.replace(placeholder, db_id), encoding="utf-8")
+          print("Generated ignored wrangler.toml on the ephemeral GitHub runner.")
+          PY
+
+      - name: Validate Cloudflare and vector service configuration
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_COLLECTION: ${{ vars.QDRANT_COLLECTION }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN INGEST_TOKEN QDRANT_URL QDRANT_API_KEY QDRANT_COLLECTION; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::Missing GitHub Actions configuration: ${key}"
+              exit 1
+            fi
+          done
+
+      - name: Apply D1 migrations to Cloudflare (remote only)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 migrations apply DB --remote --config wrangler.toml
+
+      - name: Deploy Worker and update its secrets
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --config wrangler.toml
+          secrets: |
+            INGEST_TOKEN
+            QDRANT_URL
+            QDRANT_API_KEY
+            QDRANT_COLLECTION
+        env:
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_COLLECTION: ${{ vars.QDRANT_COLLECTION }}

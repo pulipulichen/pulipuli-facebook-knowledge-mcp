@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local development. Replace every value; never commit .dev.vars.
+INGEST_TOKEN=replace-with-a-long-random-token
+QDRANT_URL=https://your-cluster.region.cloud.qdrant.io
+QDRANT_API_KEY=replace-with-your-qdrant-api-key
+QDRANT_COLLECTION=pulipuli_blog

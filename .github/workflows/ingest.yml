@@ -1,0 +1,66 @@
+name: Refresh blog index
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      reset_backfill:
+        description: Restart the historical feed backfill from the beginning
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# Keep manual and scheduled ingestions from competing for the same D1 lock.
+concurrency:
+  group: blog-index-ingest
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 350
+    steps:
+      - name: Check the two-day schedule gate
+        id: gate
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]] || (( ($(date -u +%s) / 86400) % 2 == 0 )); then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout ingestion client
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install runner dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: npm install --no-audit --no-fund
+
+      - name: Run resumable ingestion on the GitHub runner
+        if: steps.gate.outputs.run == 'true'
+        env:
+          INGEST_URL: ${{ secrets.INGEST_URL }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_COLLECTION: ${{ vars.QDRANT_COLLECTION }}
+          RESET_BACKFILL: ${{ github.event_name == 'workflow_dispatch' && inputs.reset_backfill || false }}
+        shell: bash
+        run: npm run ingest
+

@@ -47,6 +47,9 @@ jobs:
           npm run typecheck
           npm test
 
+      - name: Test Cloudflare workers.dev onboarding behavior
+        run: python3 -m unittest discover -s scripts -p 'test_workers_dev_subdomain.py'
+
       - name: Generate runtime Wrangler config on the GitHub runner
         env:
           D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
@@ -85,6 +88,16 @@ jobs:
             fi
           done
 
+      # Wrangler cannot answer the first-time workers.dev onboarding prompt in CI.
+      # An explicit repository variable opts in to registering an account-wide name.
+      - name: Ensure workers.dev account subdomain is ready
+        id: workers_subdomain
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WORKERS_DEV_SUBDOMAIN: ${{ vars.WORKERS_DEV_SUBDOMAIN }}
+        run: python3 scripts/ensure_workers_dev_subdomain.py
+
       - name: Apply D1 migrations to Cloudflare (remote only)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -107,3 +120,17 @@ jobs:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_COLLECTION: ${{ vars.QDRANT_COLLECTION }}
+
+      - name: Show live Worker URL
+        env:
+          WORKERS_DEV_SUBDOMAIN: ${{ steps.workers_subdomain.outputs.subdomain }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://pulipuli-facebook-knowledge-mcp.${WORKERS_DEV_SUBDOMAIN}.workers.dev"
+          echo "Deployed Worker health URL: ${url}/health"
+          {
+            echo "### Cloudflare Worker deployed"
+            echo "Health check: \`${url}/health\`"
+            echo "MCP endpoint: \`${url}/mcp\`"
+          } >> "$GITHUB_STEP_SUMMARY"

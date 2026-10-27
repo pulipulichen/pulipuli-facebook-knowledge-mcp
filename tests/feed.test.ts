@@ -29,7 +29,7 @@ describe("Blogger and RSS feed ingestion", () => {
     const request = new URL(String(vi.mocked(fetch).mock.calls[0][0]));
     expect(request.pathname).toBe("/feeds/posts/summary");
     expect(Object.fromEntries(request.searchParams)).toEqual({ "start-index": "101", "max-results": "100", orderby: "updated", alt: "json" });
-    expect(page.entries).toEqual([{ title: "A small metadata feed", url: baseUrl + "post.html", publishedAt: "2026-10-26T07:30:00.000Z", updatedAt: "2026-10-26T08:30:00.000Z", tags: ["MCP"] }]);
+    expect(page.entries).toEqual([{ title: "A small metadata feed", url: baseUrl + "post.html", publishedAt: "2026-10-26T07:30:00.000Z", updatedAt: "2026-10-26T08:30:00.000Z", tags: ["MCP"], content: "" }]);
     expect(page.nextUrl).toContain("start-index=201");
   });
 
@@ -63,6 +63,7 @@ describe("Blogger and RSS feed ingestion", () => {
       publishedAt: "2026-10-26T07:30:00.000Z",
       updatedAt: "2026-10-26T08:30:00.000Z",
       tags: ["Cloudflare", "MCP"],
+      content: "",
     });
   });
 

@@ -1,11 +1,11 @@
-name = "pulipuli-blog-knowledge-mcp"
+name = "pulipuli-facebook-knowledge-mcp"
 main = "src/index.ts"
 compatibility_date = "2026-10-26"
 workers_dev = true
 
 [vars]
-BLOG_FEED_URL = "https://blog.pulipuli.info/feeds/posts/default"
-BLOG_BASE_URL = "https://blog.pulipuli.info/"
+BLOG_FEED_URL = "http://fetchrss.com/rss/5ff67856db94f676db0c0fc262239753566b5039276f8e22.xml"
+BLOG_BASE_URL = "https://www.facebook.com/pulipuli.blogspot"
 EMBEDDING_MODEL = "@cf/baai/bge-m3"
 MAX_ARTICLES_PER_REQUEST = "1"
 FEED_PAGE_SIZE = "100"
@@ -17,7 +17,7 @@ SEARCH_MAX_RESULTS = "20"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "pulipuli-blog-knowledge"
+database_name = "pulipuli-facebook-knowledge"
 database_id = "REPLACE_WITH_REAL_DATABASE_ID"
 migrations_dir = "migrations"
 

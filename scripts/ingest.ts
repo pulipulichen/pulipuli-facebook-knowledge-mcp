@@ -1,9 +1,9 @@
 import { pathToFileURL } from "node:url";
-import { fetchArticleText } from "../src/article";
+
 import { getIngestStatus, runIngest } from "../src/ingest";
 import { HttpError, sleep } from "../src/http";
 import type { Env, IngestResult } from "../src/types";
-import { extractArticleText } from "./html-text";
+
 import { createRunnerEnv } from "./runner-env";
 
 function integer(source: NodeJS.ProcessEnv, key: string, fallback: number, min = 1) {
@@ -31,7 +31,8 @@ export async function ingestOnRunner(env: Env, source: NodeJS.ProcessEnv = proce
           readArticle: async (url, entry, bindings) => {
             // Print before fetching/embedding, so a crash still identifies it.
             console.log(`Processing: ${entry.title}\nURL: ${url}`);
-            return fetchArticleText(url, entry, bindings, extractArticleText);
+            if (!entry.content?.trim()) throw new Error("RSS item has no public post text");
+            return entry.content;
           },
         });
         break;

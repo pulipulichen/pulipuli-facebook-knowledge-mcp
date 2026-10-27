@@ -14,7 +14,7 @@ export async function handleMcpRequest(request: Request, env: Env): Promise<Resp
   server.registerTool(
     "search_articles",
     {
-      description: "Search Pulipuli's blog articles by keyword or semantic similarity. Returns titles, dates, tags, excerpts, scores, and canonical article URLs.",
+      description: "Search public posts from Pulipuli's Facebook page (布丁布丁吃什麼？) by keyword or semantic similarity. Returns titles, dates, tags, excerpts, scores, and original Facebook post URLs.",
       inputSchema: {
         query: z.string().min(2).max(300),
         limit: z.number().int().min(1).max(20).optional(),

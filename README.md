@@ -100,6 +100,7 @@ These are the cloud infrastructure steps **once the checklist above has been com
 3. In **GitHub → Repository Settings → Secrets and variables → Actions**, configure the following **Variables**:
    - `D1_DATABASE_ID`: Facebook D1 database UUID.
    - `QDRANT_COLLECTION`: Facebook-only vector collection name.
+   - `WORKERS_DEV_SUBDOMAIN` (only for first deployment on a fresh Cloudflare account): The account-wide workers.dev subdomain to register, e.g. `pulipuli-facebook`. If one already exists, leave unset. The workflow checks and will not silently rename it.
    - `ENABLE_AUTO_DEPLOY` (optional): Leave unset or `false` until the first manual deployment is verified.
 4. Configure the following **Secrets**:
    - `CLOUDFLARE_API_TOKEN`: Scoped Cloudflare deployment and D1 API token.
@@ -107,7 +108,7 @@ These are the cloud infrastructure steps **once the checklist above has been com
    - `INGEST_TOKEN`: Long, cryptographically random token protecting ingestion endpoints; use at least 32 random bytes.
    - `QDRANT_URL`: Qdrant cluster REST endpoint, including `https://`.
    - `QDRANT_API_KEY`: Qdrant API key.
-5. Review the Facebook-specific values in `wrangler.example.toml` **and** the feed/reader implementation. Then run **Actions → Deploy Cloudflare Worker → Run workflow**. The runner executes checks, applies remote D1 migrations, deploys the Worker, and synchronizes Worker Secrets.
+5. Review the Facebook-specific values in `wrangler.example.toml` **and** the feed/reader implementation. Then run **Actions → Deploy Cloudflare Worker → Run workflow**. The runner checks or registers the workers.dev subdomain before applying remote D1 migrations, then deploys the Worker and synchronizes Worker Secrets. For new Cloudflare accounts, set `WORKERS_DEV_SUBDOMAIN` first; otherwise Wrangler cannot publish from non-interactive GitHub Actions.
 6. Check `https://<worker-host>/health`, then add the **Secret** `INGEST_URL=https://<worker-host>/internal/ingest`.
 7. After verifying a small Facebook sample, run **Actions → Refresh blog index → Run workflow** (the current workflow name, pending rename). Leave `reset_backfill` unchecked unless deliberately restarting feed traversal.
 8. Verify that returned records link to **Facebook posts, not blog articles**, and only then enable the periodic feed refresh. Optionally set `ENABLE_AUTO_DEPLOY=true` after the initial deployment succeeds.

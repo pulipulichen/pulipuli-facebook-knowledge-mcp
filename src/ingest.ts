@@ -134,9 +134,8 @@ type ArticleReader = (url: string, entry: FeedEntry, env: Env) => Promise<string
 async function indexEntry(env: Env, entry: FeedEntry, lease: IngestLease, readArticle: ArticleReader): Promise<"inserted" | "updated" | "unchanged"> {
   const config = getConfig(env);
   const canonicalUrl = canonicalizeUrl(entry.url, config.blogBaseUrl);
-  const canonicalOrigin = new URL(canonicalUrl).origin;
-  if (canonicalOrigin !== new URL(config.blogBaseUrl).origin) {
-    throw new Error("Feed article URL is outside the configured blog origin");
+  if (!["facebook.com", "www.facebook.com", "m.facebook.com", "web.facebook.com"].includes(new URL(canonicalUrl).hostname)) {
+    throw new Error("Feed item does not link to a Facebook post");
   }
 
   const articleId = await stableUuid(`article:${canonicalUrl}`);
@@ -204,7 +203,7 @@ async function indexEntry(env: Env, entry: FeedEntry, lease: IngestLease, readAr
       status = 'published'
   `).bind(
     articleId,
-    "pulipuli-blog",
+    "pulipuli-facebook",
     canonicalUrl,
     title,
     entry.publishedAt,
@@ -313,7 +312,10 @@ export async function runIngest(env: Env, options: { reset?: boolean; readArticl
   }
 
   const config = getConfig(env);
-  const readArticle = options.readArticle ?? fetchArticleText;
+  const readArticle = options.readArticle ?? (async (_url, entry) => {
+    if (!entry.content?.trim()) throw new Error("RSS item has no public post text; Facebook HTML scraping is disabled");
+    return entry.content;
+  });
   const lease = await acquireIngestLease(env);
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
@@ -338,8 +340,8 @@ export async function runIngest(env: Env, options: { reset?: boolean; readArticl
     mode = savedMode === "backfill" || savedMode === "incremental"
       ? savedMode
       : backfillComplete ? "incremental" : "backfill";
-    const cursor = savedCursor ?? {
-      url: feedUrlWithPagination(config.feedUrl, config.feedPageSize, 1),
+    const cursor = savedCursor && new URL(savedCursor.url).origin === new URL(config.feedUrl).origin && !savedCursor.url.includes("start-index=") ? savedCursor : {
+      url: config.feedUrl,
       offset: 0,
     };
 
@@ -397,9 +399,7 @@ export async function runIngest(env: Env, options: { reset?: boolean; readArticl
       nextCursor = { url: cursor.url, offset: start + batch.length };
     } else if (mode === "backfill" && page.entries.length > 0) {
       const minimumFullPage = Math.min(config.feedPageSize, 25);
-      const nextUrl = page.nextUrl ?? (page.entries.length >= minimumFullPage
-        ? nextStartIndexUrl(cursor.url, page.entries.length)
-        : null);
+      const nextUrl = page.nextUrl;
       if (nextUrl && nextUrl !== cursor.url) nextCursor = { url: nextUrl, offset: 0 };
     }
 

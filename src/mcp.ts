@@ -7,7 +7,7 @@ import type { Env, SearchMode } from "./types";
 
 export async function handleMcpRequest(request: Request, env: Env): Promise<Response> {
   const server = new McpServer({
-    name: "pulipuli-blog-knowledge-mcp",
+    name: "pulipuli-facebook-knowledge-mcp",
     version: "0.1.0",
   });
 
@@ -35,7 +35,7 @@ export async function handleMcpRequest(request: Request, env: Env): Promise<Resp
   server.registerTool(
     "list_recent_articles",
     {
-      description: "List the N most recently published indexed Pulipuli Blog articles (default 5), newest first, without a search query or embedding request. Returns titles, URLs, publication dates, tags, and excerpts.",
+      description: "List the N most recently published indexed posts from Pulipuli Facebook page (default 5), newest first, without a search query or embedding request. Returns titles, original Facebook post URLs, publication dates, tags, and excerpts.",
       inputSchema: { n: z.number().int().min(1).max(50).optional() },
     },
     async ({ n }) => {
@@ -52,7 +52,7 @@ export async function handleMcpRequest(request: Request, env: Env): Promise<Resp
   server.registerTool(
     "get_article",
     {
-      description: "Read the full indexed text and source metadata for one blog article using its result ID or canonical URL.",
+      description: "Read the indexed text and source metadata for one public Facebook post using its result ID or canonical post URL.",
       inputSchema: { id: z.string().min(1).max(2_000) },
     },
     async ({ id }) => {

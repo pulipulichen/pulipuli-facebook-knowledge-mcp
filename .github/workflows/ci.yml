@@ -32,3 +32,5 @@ jobs:
         run: npm run typecheck
       - name: Run offline tests
         run: npm test
+      - name: Test workers.dev onboarding logic
+        run: python3 -m unittest discover -s scripts -p 'test_workers_dev_subdomain.py'

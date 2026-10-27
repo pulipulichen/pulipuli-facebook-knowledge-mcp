@@ -19,14 +19,14 @@ vi.mock("../src/qdrant", async (importOriginal) => ({
 let store: ReturnType<typeof sqliteD1>;
 let env: Env;
 const entries: FeedEntry[] = ["one", "two", "three"].map((name) => ({
-  title: name, url: `https://blog.pulipuli.info/${name}.html`, tags: ["test"], publishedAt: null, updatedAt: null,
+  title: name, url: `https://www.facebook.com/pulipuli.blogspot/posts/${name}`, tags: ["test"], publishedAt: null, updatedAt: null, content: "Readable Facebook post text ".repeat(20),
 }));
-const cursor = { url: "https://blog.pulipuli.info/feeds/posts/default?max-results=100&start-index=101", offset: 1 };
+const cursor = { url: "https://example.com/facebook.atom", offset: 1 };
 function state(key: string) { return store.sqlite.prepare("SELECT value FROM sync_state WHERE key = ?").get(key)?.value; }
 beforeEach(() => {
   vi.clearAllMocks();
   store = sqliteD1();
-  env = { DB: store.db, BLOG_FEED_URL: "https://blog.pulipuli.info/feeds/posts/default", BLOG_BASE_URL: "https://blog.pulipuli.info/", REQUEST_DELAY_MS: "0" } as Env;
+  env = { DB: store.db, BLOG_FEED_URL: "https://example.com/facebook.atom", BLOG_BASE_URL: "https://www.facebook.com/pulipuli.blogspot/", REQUEST_DELAY_MS: "0" } as Env;
   store.sqlite.prepare("INSERT INTO sync_state VALUES ('ingest_cursor', ?, '')").run(JSON.stringify(cursor));
   vi.mocked(fetchFeedPage).mockResolvedValue({ entries, nextUrl: null });
   vi.mocked(fetchArticleText).mockResolvedValue("Readable article text ".repeat(20));
@@ -70,7 +70,7 @@ describe("ingestion checkpoints and resource budgets with real SQLite", () => {
   });
 
   it("shares the one-article budget with due retries without skipping fresh entries", async () => {
-    const retry = { ...entries[0], title: "Retry", url: "https://blog.pulipuli.info/retry.html" };
+    const retry = { ...entries[0], title: "Retry", url: "https://www.facebook.com/pulipuli.blogspot/posts/retry" };
     store.sqlite.prepare("INSERT INTO failed_articles VALUES (?, ?, 1, 0, 'previous error', '')").run(retry.url, JSON.stringify(retry));
     const result = await runIngest(env);
     expect(result).toMatchObject({ scanned: 0, retrying: 1, inserted: 1, done: false, articles: [{ title: "Retry" }] });

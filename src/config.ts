@@ -9,8 +9,8 @@ function boundedInteger(value: string | undefined, fallback: number, min: number
 export function getConfig(env: Env) {
   const chunkSizeChars = boundedInteger(env.CHUNK_SIZE_CHARS, 900, 200, 3000);
   return {
-    feedUrl: env.BLOG_FEED_URL || "https://blog.pulipuli.info/feeds/posts/default",
-    blogBaseUrl: env.BLOG_BASE_URL || "https://blog.pulipuli.info/",
+    feedUrl: env.BLOG_FEED_URL || "http://fetchrss.com/rss/5ff67856db94f676db0c0fc262239753566b5039276f8e22.xml",
+    blogBaseUrl: env.BLOG_BASE_URL || "https://www.facebook.com/pulipuli.blogspot",
     embeddingModel: env.EMBEDDING_MODEL || "@cf/baai/bge-m3",
     maxArticlesPerRequest: boundedInteger(env.MAX_ARTICLES_PER_REQUEST, 1, 1, 25),
     feedPageSize: boundedInteger(env.FEED_PAGE_SIZE, 100, 10, 100),
@@ -28,6 +28,7 @@ export function getConfig(env: Env) {
 
 export function feedUrlWithPagination(feedUrl: string, pageSize: number, startIndex = 1): string {
   const url = new URL(feedUrl);
+  if (!/blogspot|blogger/i.test(url.hostname)) return url.toString();
   if (!url.searchParams.has("max-results")) url.searchParams.set("max-results", String(pageSize));
   if (!url.searchParams.has("start-index")) url.searchParams.set("start-index", String(startIndex));
   else if (startIndex > 1) url.searchParams.set("start-index", String(startIndex));

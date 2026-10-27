@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { fetchWithRetry, parseDate } from "./http";
+import { fetchWithRetry, parseDate, normalizeText } from "./http";
 import type { FeedEntry } from "./types";
 
 const xmlParser = new XMLParser({
@@ -77,6 +77,7 @@ function parseEntry(raw: Record<string, unknown>, baseUrl: string): FeedEntry | 
     publishedAt,
     updatedAt,
     tags: parseTags(raw.category ?? raw.categories),
+    content: normalizeText(textValue(raw.encoded ?? raw.description ?? raw.content ?? raw.summary).replace(/<[^>]*>/g, " ")).slice(0, 100_000),
   };
 }
 
@@ -93,7 +94,7 @@ export async function fetchFeedPage(feedUrl: string, blogBaseUrl: string): Promi
   const response = await fetchWithRetry(requestUrl, {
     headers: {
       Accept: "application/json, application/atom+xml, application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.5",
-      "User-Agent": "PulipuliBlogKnowledgeBot/0.1 (+https://github.com/pulipulichen/pulipuli-blog-knowledge-mcp)",
+      "User-Agent": "PulipuliFacebookKnowledgeBot/0.1 (+https://github.com/pulipulichen/pulipuli-facebook-knowledge-mcp)",
     },
   });
   if (!response.ok) throw new Error(`Feed request returned HTTP ${response.status}`);

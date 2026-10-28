@@ -3,7 +3,7 @@ export const INDEX_HTML = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="搜尋布丁布丁吃布丁的部落格文章。支援關鍵字與語意查詢。">
+  <meta name="description" content="搜尋「布丁布丁吃什麼？」的公開 Facebook 貼文。支援關鍵字與語意查詢。">
   <meta name="theme-color" content="#f5f6f2">
   <title>布丁布丁吃布丁｜部落格知識搜尋</title>
   <style>
@@ -19,29 +19,29 @@ export const INDEX_HTML = `<!doctype html>
 <body>
   <main class="wrap">
     <header class="hero">
-      <div class="brand"><span class="brand-mark">布</span> Pulipuli Blog Knowledge</div>
-      <h1>從文章裡，<br>找到你要的答案。</h1>
-      <p>搜尋「布丁布丁吃布丁」部落格的文章。可以輸入主題、技術名稱或一段自然語言問題。</p>
+      <div class="brand"><span class="brand-mark">布</span> Pulipuli Facebook Knowledge</div>
+      <h1>從 Facebook 貼文裡，<br>找到你要的答案。</h1>
+      <p>搜尋「布丁布丁吃什麼？」Facebook 粉絲專頁的公開貼文。可以輸入主題、技術名稱或一段自然語言問題。</p>
     </header>
 
-    <section class="search" aria-label="部落格文章搜尋">
+    <section class="search" aria-label="Facebook 貼文搜尋">
       <form id="search-form" class="search-form">
         <input id="query" class="query" type="search" minlength="2" maxlength="300" placeholder="例如：Proxmox 如何設定 Ceph？" autocomplete="off" required>
-        <button class="submit" type="submit">搜尋文章</button>
+        <button class="submit" type="submit">搜尋貼文</button>
       </form>
       <div class="options"><label for="mode">搜尋方式</label><select id="mode"><option value="hybrid">混合搜尋</option><option value="semantic">語意搜尋</option><option value="keyword">關鍵字搜尋</option></select><span>混合搜尋會合併關鍵字與語意結果</span></div>
-      <div class="recent"><label for="recent-count">最新文章篇數</label><input id="recent-count" type="number" min="1" max="50" step="1" value="5"><button id="recent-button" type="button">列出最新文章</button></div>
+      <div class="recent"><label for="recent-count">最新貼文篇數</label><input id="recent-count" type="number" min="1" max="50" step="1" value="5"><button id="recent-button" type="button">列出最新貼文</button></div>
     </section>
 
     <div id="status" class="status" role="status" aria-live="polite"></div>
     <section id="results" class="results" aria-live="polite"></section>
 
     <section class="info" aria-label="服務資訊">
-      <div class="info-card"><strong>給 ChatGPT 使用</strong><p>在 ChatGPT 的 MCP 設定中加入這個 Worker 的 <code>/mcp</code> 網址，即可搜尋與讀取文章。</p></div>
-      <div class="info-card"><strong>資料來源與更新</strong><p>資料來自個人部落格公開文章，初次建置會分批回填，之後每兩天檢查更新。</p></div>
+      <div class="info-card"><strong>給 ChatGPT 使用</strong><p>在 ChatGPT 的 MCP 設定中加入這個 Worker 的 <code>/mcp</code> 網址，即可搜尋與讀取貼文。</p></div>
+      <div class="info-card"><strong>資料來源與更新</strong><p>資料來自Facebook 粉絲專頁公開貼文，初次建置會分批回填，之後每兩天檢查更新。</p></div>
     </section>
 
-    <footer class="footer"><span>由布丁布丁吃布丁（pulipulichen）建立</span><span><a href="https://blog.pulipuli.info/" rel="noopener">部落格</a>　·　<a href="https://github.com/pulipulichen/pulipuli-blog-knowledge-mcp" rel="noopener">GitHub 專案</a></span></footer>
+    <footer class="footer"><span>由布丁布丁吃什麼？（pulipulichen）建立</span><span><a href="https://blog.pulipuli.info/" rel="noopener">部落格</a>　·　<a href="https://github.com/pulipulichen/pulipuli-facebook-knowledge-mcp" rel="noopener">GitHub 專案</a></span></footer>
   </main>
   <script>
     const form=document.querySelector('#search-form');
@@ -54,20 +54,20 @@ export const INDEX_HTML = `<!doctype html>
     const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     const formatDate=value=>{if(!value)return '';const date=new Date(value);return Number.isNaN(date.valueOf())?'':new Intl.DateTimeFormat('zh-TW',{year:'numeric',month:'long',day:'numeric'}).format(date)};
     const render=items=>{
-      if(!items.length){results.innerHTML='<div class="empty">沒有找到符合的文章，試試其他關鍵字。</div>';return;}
+      if(!items.length){results.innerHTML='<div class="empty">沒有找到符合的貼文，試試其他關鍵字。</div>';return;}
       results.innerHTML=items.map(item=>'<article class="result"><h2><a href="'+escapeHtml(item.url)+'" target="_blank" rel="noopener">'+escapeHtml(item.title)+'</a></h2><div class="meta"><span>'+escapeHtml(formatDate(item.publishedAt))+'</span><span>'+escapeHtml(item.url)+'</span></div><p class="excerpt">'+escapeHtml(item.excerpt)+'</p>'+(item.tags?.length?'<div class="tags">'+item.tags.map(tag=>'<span class="tag">'+escapeHtml(tag)+'</span>').join('')+'</div>':'')+'</article>').join('');
     };
     recentButton.addEventListener('click',async()=>{
       const n=Number(recentCount.value);
       if(!Number.isInteger(n)||n<1||n>50){status.textContent='請輸入 1 到 50 的整數。';return;}
-      status.textContent='載入最新文章中…';results.innerHTML='';
+      status.textContent='載入最新貼文中…';results.innerHTML='';
       try{
         const response=await fetch('/api/recent?n='+n,{headers:{Accept:'application/json'}});
         const body=await response.json();
         if(!response.ok)throw new Error(body.error?.message||'讀取失敗');
-        status.textContent='最近 '+body.count+' 篇文章';
+        status.textContent='最近 '+body.count+' 篇貼文';
         render(body.results||[]);
-      }catch(error){status.textContent=error.message||'目前無法載入最新文章。';}
+      }catch(error){status.textContent=error.message||'目前無法載入最新貼文。';}
     });
     form.addEventListener('submit',async event=>{
       event.preventDefault();
@@ -79,7 +79,7 @@ export const INDEX_HTML = `<!doctype html>
         const response=await fetch('/api/search?'+params.toString(),{headers:{Accept:'application/json'}});
         const body=await response.json();
         if(!response.ok)throw new Error(body.error?.message||'搜尋失敗');
-        status.textContent='找到 '+body.count+' 篇文章';
+        status.textContent='找到 '+body.count+' 篇貼文';
         render(body.results||[]);
       }catch(error){status.textContent=error.message||'搜尋服務暫時無法使用。';}
     });

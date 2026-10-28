@@ -6,8 +6,8 @@ A cloud-native, public, read-only knowledge base **intended for posts from [å¸ƒä
 
 It is based on [Pulipuli Blog Knowledge MCP](https://github.com/pulipulichen/pulipuli-blog-knowledge-mcp), but **the Facebook posts and the blog articles are meant to live in separate databases and vector collections**.
 
-> [!IMPORTANT]
-> **Project status: Facebook-specific integration is not finished.** The current codebase is derived from the Blog project, and its runtime configuration, source identifiers, website copy, MCP descriptions, and GitHub Actions labels still reference the blog. In particular, **`wrangler.example.toml` currently points to `blog.pulipuli.info`**. Deploying or running ingestion without adapting those settings and the ingestion code would not create a functioning Facebook knowledge base. The sections below distinguish existing infrastructure from work that remains.
+> [!NOTE]
+> This repository is the Facebook-specific knowledge base. Its MCP tools use Facebook-post terminology; existing D1 and Qdrant storage identifiers remain unchanged for compatibility. Runtime deployment and ChatGPT connector refresh are separate steps.
 
 ## Goals
 
@@ -70,7 +70,7 @@ The repository already contains these reusable components inherited from the Blo
 - **Content indexing:** URL-based deduplication, content hashes, text chunks, failed-item retry records, and D1 ingestion leases. The current fetcher expects same-origin HTML article pages and is **not Facebook-ready**.
 - **Search:** Keyword search using D1 substring matching, semantic search using Workers AI embeddings and Qdrant Cloud, and hybrid ranking using Reciprocal Rank Fusion (RRF).
 - **Recently indexed items:** A website action and API endpoint to list the newest records; default 5, configurable from 1 to 50.
-- **Read-only MCP tools:** `search_articles`, `list_recent_articles`, and `get_article`, served over Streamable HTTP. The tool names and underlying storage are reusable, but descriptions currently refer to blog articles.
+- **Read-only MCP tools:** `search_facebook_posts`, `list_recent_facebook_posts`, and `get_facebook_post`, served over Streamable HTTP. Tool descriptions explicitly identify Facebook posts, not blog articles.
 - **Cloud automation:** Offline TypeScript checks and unit tests, manual/optional automatic Worker deployment, remote D1 migrations, and scheduled resumable ingestion.
 - **Progress diagnostics:** Runner output includes the title and URL being processed; protected ingestion status reports active records and lease information.
 
@@ -80,7 +80,7 @@ These describe **existing code capabilities**, not confirmation that Facebook RS
 
 The following changes are needed **before the first Facebook production import**:
 
-- [ ] Replace Blog-specific names, URLs, source IDs, and public text in `package.json`, `wrangler.example.toml`, `config.example.json`, `src/config.ts`, `src/ingest.ts`, `src/mcp.ts`, `src/web.ts`, and related code.
+- [x] Replace user-facing MCP tool names, descriptions, and website copy (while retaining legacy internal storage/config keys for compatibility) in in `package.json`, `wrangler.example.toml`, `config.example.json`, `src/config.ts`, `src/ingest.ts`, `src/mcp.ts`, `src/web.ts`, and related code.
 - [ ] Set the intended FetchRSS URL as the production feed; use the Facebook page as the source context where appropriate, without assuming feed and post URLs have the same origin.
 - [ ] Test FetchRSS XML structure, pagination, item identifiers, timestamps, and whether the provider supplies full post text. Avoid applying Blogger-only `max-results` / `start-index` pagination to this feed.
 - [ ] Implement a Facebook-aware post-content strategy. The current parser fetches each post's HTML, checks `robots.txt`, enforces an origin restriction, and requires at least 80 characters of extracted text. Facebook redirects, login pages, dynamic content, and restricted HTML can make that fail. A validated RSS-content fallback may be necessary.

@@ -12,9 +12,9 @@ export async function handleMcpRequest(request: Request, env: Env): Promise<Resp
   });
 
   server.registerTool(
-    "search_articles",
+    "search_facebook_posts",
     {
-      description: "Search public posts from Pulipuli's Facebook page (布丁布丁吃什麼？) by keyword or semantic similarity. Returns titles, dates, tags, excerpts, scores, and original Facebook post URLs.",
+      description: "Search ONLY public Facebook posts (not blog articles) from Pulipuli's Facebook page (布丁布丁吃什麼？) by keyword or semantic similarity. Returns titles, dates, tags, excerpts, scores, and original Facebook post URLs.",
       inputSchema: {
         query: z.string().min(2).max(300),
         limit: z.number().int().min(1).max(20).optional(),
@@ -33,9 +33,9 @@ export async function handleMcpRequest(request: Request, env: Env): Promise<Resp
   );
 
   server.registerTool(
-    "list_recent_articles",
+    "list_recent_facebook_posts",
     {
-      description: "List the N most recently published indexed posts from Pulipuli Facebook page (default 5), newest first, without a search query or embedding request. Returns titles, original Facebook post URLs, publication dates, tags, and excerpts.",
+      description: "List the N most recently published indexed Facebook posts (not blog articles) from Pulipuli Facebook page (default 5), newest first, without a search query or embedding request. Returns titles, original Facebook post URLs, publication dates, tags, and excerpts.",
       inputSchema: { n: z.number().int().min(1).max(50).optional() },
     },
     async ({ n }) => {
@@ -43,25 +43,25 @@ export async function handleMcpRequest(request: Request, env: Env): Promise<Resp
         const result = await listRecentArticles(env, n);
         return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Recent articles lookup failed";
+        const message = error instanceof Error ? error.message : "Recent Facebook posts lookup failed";
         return { isError: true, content: [{ type: "text", text: message }] };
       }
     },
   );
 
   server.registerTool(
-    "get_article",
+    "get_facebook_post",
     {
-      description: "Read the indexed text and source metadata for one public Facebook post using its result ID or canonical post URL.",
+      description: "Read the indexed text and source metadata for one public Facebook post (not a blog article) using its result ID or canonical post URL.",
       inputSchema: { id: z.string().min(1).max(2_000) },
     },
     async ({ id }) => {
       try {
         const article = await getArticle(env, id);
-        if (!article) return { isError: true, content: [{ type: "text", text: "Article not found" }] };
+        if (!article) return { isError: true, content: [{ type: "text", text: "Facebook post not found" }] };
         return { content: [{ type: "text", text: JSON.stringify(articleToApi(article), null, 2) }] };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Article lookup failed";
+        const message = error instanceof Error ? error.message : "Facebook post lookup failed";
         return { isError: true, content: [{ type: "text", text: message }] };
       }
     },

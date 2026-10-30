@@ -1,4 +1,4 @@
-name: Refresh blog index
+name: Refresh Facebook posts index
 
 on:
   schedule:
@@ -16,7 +16,7 @@ permissions:
 
 # Keep manual and scheduled ingestions from competing for the same D1 lock.
 concurrency:
-  group: blog-index-ingest
+  group: facebook-posts-index-ingest
   cancel-in-progress: false
 
 jobs:

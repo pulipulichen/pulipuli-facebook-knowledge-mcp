@@ -117,6 +117,17 @@ The deployed `wrangler.toml` is generated from `wrangler.example.toml` and `D1_D
 
 The existing ingestion workflow is scheduled daily at **02:17 UTC** and gates execution to every other UTC day; manual runs bypass that gate. GitHub Actions schedules may be delayed. Failed records and checkpoints are stored in D1 so interrupted runs can resume, subject to source-feed coverage and parser behavior.
 
+## Automatic Worker and Qdrant Keep-Alive
+
+The [Keep Alive - Facebook Worker and Qdrant](.github/workflows/keep-alive.yml) GitHub Actions workflow performs **read-only checks once every three UTC days**. GitHub schedules it daily at **03:53 UTC** and a UTC epoch-day modulo-3 gate skips the other days, avoiding the month-boundary drift of `*/3` in a day-of-month cron field. You can also run it immediately from **Actions → Keep Alive - Facebook Worker and Qdrant → Run workflow**.
+
+- **Cloudflare Worker + D1:** `GET /health` must report `status: ok` and `database: ok`.
+- **Qdrant:** `POST /collections/{QDRANT_COLLECTION}/points/scroll` reads at most one vector point, without creating, updating, or deleting anything. This checks Qdrant directly; the Worker health endpoint alone does not contact Qdrant.
+- **Configuration:** Reuses the existing production-environment Secrets `INGEST_URL` (ending in `/internal/ingest`), `QDRANT_URL`, and `QDRANT_API_KEY`, plus the production Variable `QDRANT_COLLECTION`. There are no additional tokens to configure.
+- **Failure reporting:** If an endpoint fails, the Action fails and the logs identify whether the Worker/D1 or Qdrant check failed. It does not automatically recreate a missing database.
+
+**Important:** Qdrant Cloud free clusters can be suspended after a week of inactivity and deleted after four weeks without reactivation. This recurring check helps prevent idle suspension, but does **not** guarantee data retention. GitHub can also automatically disable scheduled workflows on public repositories after 60 days with no repository activity, and scheduled jobs can be delayed or skipped. Check that the workflow remains enabled, and retain an independent Qdrant backup or snapshot for important data.
+
 ## HTTP Endpoints
 
 These endpoints are **implemented in the shared Worker code** and will apply to Facebook records after the source integration is completed:

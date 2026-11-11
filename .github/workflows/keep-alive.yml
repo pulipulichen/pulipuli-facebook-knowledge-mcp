@@ -1,0 +1,86 @@
+name: Keep Alive - Facebook Worker and Qdrant
+
+# Run daily but probe services every third UTC day (not '*/3' in day-of-month,
+# which resets at each month boundary). Manual runs bypass the gate.
+on:
+  schedule:
+    - cron: '53 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: facebook-worker-qdrant-keepalive
+  cancel-in-progress: false
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    steps:
+      - name: Check the three-day schedule gate
+        id: gate
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] || (( ($(date -u +%s) / 86400) % 3 == 0 )); then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Probe Worker health and query Qdrant
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        env:
+          INGEST_URL: ${{ secrets.INGEST_URL }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_COLLECTION: ${{ vars.QDRANT_COLLECTION }}
+        run: |
+          set -euo pipefail
+
+          for key in INGEST_URL QDRANT_URL QDRANT_API_KEY QDRANT_COLLECTION; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::Missing production Actions setting: ${key}"
+              exit 1
+            fi
+          done
+
+          ingest_url="${INGEST_URL%/}"
+          if [[ "$ingest_url" != https://*/internal/ingest ]]; then
+            echo "::error::INGEST_URL must be an HTTPS URL ending with /internal/ingest."
+            exit 1
+          fi
+          if [[ "$QDRANT_URL" != https://* ]]; then
+            echo "::error::QDRANT_URL must use HTTPS."
+            exit 1
+          fi
+
+          worker_base="${ingest_url%/internal/ingest}"
+          qdrant_base="${QDRANT_URL%/}"
+          encoded_collection="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["QDRANT_COLLECTION"], safe=""))')"
+
+          # This checks that the Worker can also reach its D1 database.
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 10 --max-time 30 "${worker_base}/health" \
+            | jq -e '.status == "ok" and .database == "ok"' > /dev/null
+          echo "Worker and D1: OK"
+
+          # Read one vector point without changing the collection or its contents.
+          # /health alone does NOT contact Qdrant, so probe Qdrant directly.
+          curl --fail --silent --show-error --retry 3 --retry-all-errors --retry-delay 2 \
+            --connect-timeout 10 --max-time 30 \
+            -H "api-key: ${QDRANT_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data '{"limit":1,"with_payload":false,"with_vector":false}' \
+            "${qdrant_base}/collections/${encoded_collection}/points/scroll" \
+            | jq -e '.status == "ok" and (.result.points | type == "array")' > /dev/null
+          echo "Qdrant read query: OK"
+
+          {
+            echo "### Keep-alive checks passed"
+            echo "- Cloudflare Worker /health and D1: OK"
+            echo "- Qdrant collection read query: OK"
+          } >> "$GITHUB_STEP_SUMMARY"
